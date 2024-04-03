@@ -1,0 +1,240 @@
+---
+title: "Regression Analysis of Car Showroom Profits"
+author: 'Yu Kate Chan'
+subtitle: STAT0006 Coursework
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center")
+prof <- read.csv("profits.csv", header = TRUE)
+prof$year <- as.factor(prof$year)
+prof$weekend <- as.factor(prof$weekend)
+
+sales <- read.csv("sales.csv", header = TRUE)
+sales$year <- as.factor(sales$year)
+sales$weekend <- as.factor(sales$weekend)
+```
+
+## Part 1: Normal linear model
+### Introduction to the data
+This report aims to investigate the potential factors affecting the daily profits of a car showroom. The provided dataset comprises 314 profit entries over a five-year period (2019-2023), featuring four categorical and three numerical variables. Notably, the dataset is complete with no missing values.
+
+The mean profit is approximately 2798.8 GBP, ranging from -118.3 GBP to 13632.8 GBP (with negative profits indicating a loss). From analysing the density plot of profits below, the data shows a positive skewness, indicating potential overestimation when using the mean for analysis as the mean is greater than the median. Thus, we prefer to use the median values in this case [^Median].
+
+```{r fig.height=3.5,fig.cap="Density plot of profits"}
+par(mfrow = c(1, 1), mar = c(4, 5, 1, 3), cex.lab = 0.9, cex.axis = 0.8, cex.main=0.9)
+
+plot(density(prof$profits), main = "", col = "darkorchid2", lwd = 3.5, )
+```
+\pagebreak
+
+We analyse the categorical variables which are year, day type, rainy condition, and new car release using boxplots as follows. The black line represents the median. All the boxplots indicate some observations far beyond the upper whisker, while there is no observations locating beyond the lower whisker. Considering that the mean is more sensitive to extreme values than the median, the median might therefore provide a more realistic representation of the data. All categorical variables seem to exert little influence on the daily profit.
+
+No significant trend in median profit is observed across the five years of collected data. However, the increased occurrences of outliers in 2020, 2021, and 2022 may be attributed to higher data volume in these years. Notably, the relatively small box for the year 2019 indicates significantly less dispersion in the data compared to other years. Considering data on whether a new car model has been released in the past seven days, it is observed that when there is no new release, the median profit is higher at 2425.15 GBP, whereas the median profit is at 2064.10 GBP when there is a new car release. Notably, there are 26 entries for new releases and 288 entries for days with no release.
+
+```{r fig.cap="Profits by categorical variables", fig.height=6}
+par(mfrow = c(2, 2), mar = c(4, 4, 3, 1), cex.lab = 0.9, cex.axis = 0.8, cex.main = 1.05)
+
+boxplot(profits ~ year,
+  data = prof, col = "darkturquoise", border = "black", lwd = 1,
+  ylab = "Profits (GBP)", xlab = "Year", main = "Profits by year"
+)
+
+boxplot(profits ~ new_release,
+  data = prof, col = "darkturquoise", border = "black", lwd = 1,
+  ylab = "Profits (GBP)", xlab = "Car Release", ylim = range(prof$profits), main = "Profits by new car release",
+  axes = FALSE
+)
+axis(1, at = c(1, 2), labels = c("No release", "New release"))
+axis(2, col.axis = "black")
+axis(1, col.axis = "black", tcl = 0, labels = FALSE)
+box()
+
+boxplot(profits ~ weekend,
+  data = prof,
+  col = "darkturquoise", border = "black", lwd = 1,
+  ylab = "Profits (GBP)", xlab = "Day type",
+  ylim = range(prof$profits), main = "Profits by day type",
+  axes = FALSE
+)
+axis(1, at = c(1, 2), labels = c("Weekday", "Weekend"))
+axis(2, col.axis = "black")
+axis(1, col.axis = "black", tcl = 0, labels = FALSE)
+box()
+
+boxplot(profits ~ rain,
+  data = prof, col = "darkturquoise", border = "black", lwd = 1,
+  ylab = "Profits (GBP)", xlab = "Presence of rain", ylim = range(prof$profits), main = "Profits by presence of rain",
+  axes = FALSE
+)
+axis(1, at = c(1, 2), labels = c("No Rain", "Rain"))
+axis(2, col.axis = "black")
+axis(1, col.axis = "black", tcl = 0, labels = FALSE)
+box()
+```
+
+\pagebreak
+
+Examining profits by day type, weekends show a higher median at 2561.92 GBP compared to weekdays at 2264.93 GBP, with both day types exhibiting positive skewness in profit distribution. Additionally, considering data on whether there was any rain at the showroom on a given day, lower profits at 2313.57 GBP are noted when rain is present compared to 2652.45 GBP when there is no rain, as depicted in the boxplot.
+
+The temperature data is analyzed using the scatter plot below. The temperature ranges from -2.42 degrees Celsius to 25 degrees Celsius, with a mean of 2.72 degrees Celsius. A positive relationship is observed between temperature and daily profits, with higher temperatures generally associated with greater profits. Notably, the variability of profits seems to increase as temperature rises. Additionally, the data reveals a weak positive association between advertising expenditure and daily profits, and a right-skewed distribution is evident. Moreover, the variability of profits appears to increase with higher advertising expenditure. Data on the number of staff working on a given day ranges from 1 to 5 staff members. The median profits appear to increase with the number of staff members, except for 5 staff members, for which only 1 data point is available.
+
+```{r scatterplots, fig.cap="Profits by numerical covariates", fig.height=3}
+par(mfrow = c(1, 3), mar = c(4, 4, 4, 1))
+
+plot(prof$profits, x = prof$temperature, pch = 20, col = rgb(0, 150 / 255, 155 / 255, 0.3), xlab = "Temperature (degrees Celsius)", ylab = "Profits (GBP)", main = "Profits against\ntemperature")
+
+plot(prof$profits, x = prof$advert, pch = 20, col = rgb(0, 150 / 255, 155 / 255, 0.3), xlab = "Advert (GBP)", ylab = "Profits (GBP)", main = "Profits against advert")
+
+medians <- tapply(prof$profits, prof$staff, median)
+plot(x = prof$staff, y = prof$profits, pch = 20, col = rgb(0, 150 / 255, 155 / 255, 0.3), xlab = "Number of staff", ylab = "Profits (GBP)", main = "Profits against\nstaff number")
+for (i in unique(prof$staff)) {
+  points(x = i, y = medians[i], pch = 2, col = "red")
+}
+legend("topright", legend = c("Profits", "Median profits"), pch = c(20, 2), col = c(rgb(0, 150 / 255, 155 / 255, 0.3), "red"), cex = 1)
+```
+
+In conclusion, the analysis reveals that the covariates that might be potentially useful in modeling the factors that affect profits are the number of staff, new car release, day of the week, temperature, and presence of rain. Though the categorical covariates do not appear to have much influence on the profits, the interactions between them and other numerical covariates might be insightful.
+
+\newpage
+
+### Model building
+When building the model, we used backward elimination with $\alpha~_{remove}$ set to 0.05. Through each iteration of the process, we remove the covariate that has the highest p-value. This allows us to determine the covariates that are most significant in predicting daily profits.
+
+Firstly, we start with a full model including all the covariates, which are `staff`, `advert`, `new_release`, `temperature`, `weekend`, `rain` and `year`. We obtain Model 1 summarised below:
+
+```{r lm1}
+model1 <- lm(profits ~ staff + advert + temperature + new_release + weekend + rain + year, data = prof)
+summary(model1)
+```
+
+From the initial model, the dummy variable `weekend1` has the highest p-value overall since some of the dummy variables for `year` are lower. From this, we remove `weekend` from our initial model and refit the model without this covariate.
+
+By repeating the process above, we removed the covariates in the order of `weekend`, `year`, and finally, `rain`. The remaining covariates are `staff`, `advert`, `temperature` and `new_release`. This is summarised by the following Model 2:
+
+\pagebreak
+
+```{r lm2}
+model2 <- lm(profits ~ staff + advert + temperature + new_release, data = prof)
+summary(model2)
+```
+
+In the backward elimination method, interactions between the covariates were not considered. We created a scatterplot of `profits` against `temperature`, with different colours corresponding to the presence of rain and their individual line of best fits. Since the purple line is steeper than the blue line, there is evidence that the effect of temperature on daily profits changes with the presence of rain. Hence, the interaction between `temperature` and `rain` would be useful to consider in the final model.
+
+```{r temp rain plots, fig.height=4}
+par(mfrow = c(1, 1), mar = c(4, 5, 4, 3), cex.lab = 0.9, cex.axis = 0.8, cex.main=0.9)
+
+# profits against temperature categorised by presence of rain
+par(mfrow = c(1, 1))
+plot(prof$temperature, prof$profits, pch = 16, cex = 0.8, xlab = "Temperature (degrees Celsius)", ylab = "Profits (GBP)", main = "Profits against temperature categorised by presence of rain", col = "darkturquoise")
+points(prof$temperature[prof$rain == "Y"], prof$profits[prof$rain == "Y"], col = "darkorchid2", pch = 16, cex = 0.8)
+
+abline(lm(prof$profits[prof$rain == "Y"] ~ prof$temperature[prof$rain == "Y"]), col = "darkorchid2", lwd = 1.5)
+abline(lm(prof$profits[prof$rain == "N"] ~ prof$temperature[prof$rain == "N"]), col = "darkturquoise", lwd = 1.5)
+
+legend(-2, 13000, c("No rain", "Rain"), pch = 16, cex = 0.7, col = c("darkturquoise", "darkorchid2"), ncol = 1)
+```
+
+\pagebreak
+
+By including the interaction between temperature and rain, we add two additional coefficients to our model the dummy variable (`rainY`) and the interaction between temperature and rainY (`temperature:rainY`). This is our final model, called Model 3:
+
+```{r lm3}
+model3 <- lm(profits ~ staff + advert + temperature * rain + new_release, data = prof)
+summary(model3)
+```
+
+`temperature:rainY` has a very small p-value, therefore it is useful to include in the final model. Although the p-value of `rainY` is statistically insignificant, it is included due to it being a main effect, which influences the interpretation of the interaction terms.
+
+An ANOVA test is performed comparing Model 2 and Model 3 to confirm that a more complex model with interactions better predicts the daily profits. The p-value is very small so the additional terms are worth including in the final model.
+
+```{r anova1, echo=FALSE}
+anova(model2, model3, test = "F")
+```
+
+
+\pagebreak
+
+### Model checking for final chosen model
+
+```{r fitted and stdres}
+# fitted values for final model (model 3)
+model3_fitted <- fitted(model3)
+
+# standardised residuals for final model (model 3)
+model3_stdres <- rstandard(model3)
+```
+
+To assess for linearity we plot the standardised residuals with each numerical covariate (`staff`, `advert`, `temperature`) included in the final model. Under the assumption of linearity, the plots should have a random scatter of points around zero. For all plots, we can observe that the data points are scattered randomly around the horizontal line. There are a few extreme values when there are 1 or 3 members of staff working. However, a few extreme values are normal due to randomness, suggesting no evidence that the linear assumption is violated for our model. Also, the variability of the standardised residuals increases at higher temperatures.
+
+```{r lin, fig.height=2.6,fig.cap="Plots to assess the assumption of linearity by covariates"}
+par(mfrow = c(1, 3), mar = c(4, 4, 1, 1))
+
+plot(prof$temperature, model3_stdres, xlab = "Temperature (degrees Celsius)", ylab = "Standardised residuals")
+abline(a = 0, b = 0, col = "red", lwd = 1.5)
+
+plot(prof$advert, model3_stdres, xlab = "Advert (GBP)", ylab = "Standardised residuals")
+abline(a = 0, b = 0, col = "red", lwd = 1.5)
+
+plot(prof$staff, model3_stdres, xlab = "Number of Staff", ylab = "Standardised residuals")
+abline(a = 0, b = 0, col = "red", lwd = 1.5)
+```
+
+To assess for homoscedasticity of the error terms, we plot the standardised residuals against their corresponding fitted values. There is a random scatter of points along the horizontal line. However, there is increased variability for higher fitted values, so there may be some evidence against homoscedasticity. There was some consideration into taking the log of temperature to possibly reduce heteroscedasticity, but since it has an interaction with rain, it would cause interpretation issues.
+
+To assess for normality of the error terms, we use a Q-Q plot, where the points should fall along the 45-degree angle line. The majority of the points in the middle lie close to this line. At either end, the points curve away from the line, especially in the positive direction. There is no significant violation of the normality assumption since minor deviations due to extreme values are expected.
+
+```{r homoscedasticity and normality, fig.height=3,fig.cap="Plots to assess the assumptions of homoscedasticity (left), and normality (right)"}
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 1), cex.lab = 0.9, cex.axis = 0.8, cex.main = 0.9)
+
+# homoscedasticity of the errors
+plot(model3_fitted, model3_stdres,
+  xlab = "Fitted values", ylab = "Standardised residuals",
+  main = "Standardised residuals\nversus fitted values",
+  cex = 0.8
+)
+abline(a = 0, b = 0, lwd = 1.5, col = "red")
+
+# normality of the errors
+qqnorm(model3_stdres,
+  main = "Normal Q-Q Plot",
+  ylab = "Standardised residuals", xlab = "Quantiles of N(0,1)",
+  cex = 0.8
+)
+qqline(model3_stdres, lwd = 1.5, col = "red")
+```
+
+\pagebreak 
+
+Since the observations are sampled from random days, they are randomly ordered, so we are unable to check for serial correlation. 
+
+Overall, none of the plots suggest any major violation of the modelling assumptions.
+
+Finally, to check the fit of the final model, we plot all the fitted values against the corresponding observed values of profits. For the model to be a good fit, the points on the plot should lie closely along the 45-degree line. In general, the majority of the points are scattered along this line, with the exception of some larger values. Hence, we can conclude that our final model would be suitable for predicting profits based on the covariates and interactions in the model.
+
+```{r fitted vs observed, fig.height=3.8}
+par(mfrow = c(1, 1), mar = c(4, 5, 4, 3), cex.lab = 0.9, cex.axis = 0.8, cex.main=0.9)
+
+plot(prof$profits, model3_fitted,
+  xlab = "Observed value", ylab = "Fitted value", ylim = range(prof$profits),
+  main = "Assessment of fit for final model", 
+  cex = 0.8
+)
+abline(a = 0, b = 1, lwd = 2, lty = 1, col = "red")
+```
+
+\pagebreak
+
+### Conclusion
+
+According to Model 3, the main factors that influence the daily profits of the showroom are the number of staff, the amount spent on advertising in the previous seven days, the release of new car models, the temperature and the rainy conditions. In general, the release of new car models in the previous seven days is expected to reduce the daily profits by 537.83 GBP. Likewise, the daily profit is anticipated to shrink by 389.10 GBP if there is rain at the showroom. On the contrary, given that all the other factors are unchanged, a relatively high temperature is rather promising for greater profits. While profits are estimated to be worse on rainy days, the influence of the temperature on profits is greater on such days. Specifically, for every one degree Celsius increase in temperature, the profit is expected to rise by 246.57 GBP, and an additional 204.39 GBP when it rains. Having more staff on site and increasing expenditure on advertisement also appear to have a positive impact on profits. For each additional staff, the daily profit is predicted to grow by 393.73 GBP; and for each GBP increase in the amount spent on advertising in the previous seven days, the daily profit is expected to climb an extra 4.35 GBP. Among the controllable factors, the number of staff has the most positive influence on the profit of each day. But it might not be practical to increase the staff number to a great extent. Alternatively, it may be more reasonable and feasible to raise the budget for advertisement.
+
+
+\
+\
+
+
+[^Median]: Frost, J. (2023) Skewed distribution: Definition & examples, Statistics By Jim. Available at: https://statisticsbyjim.com/basics/skewed-distribution/ (Accessed: 07 January 2024). 
